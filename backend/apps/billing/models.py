@@ -52,5 +52,20 @@ class Payment(models.Model):
     currency = models.CharField(max_length=3, default="USD")
     status = models.CharField(max_length=32, default="pending")
     provider_reference = models.CharField(max_length=120, blank=True)
+    stripe_session_id = models.CharField(max_length=256, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class Invoice(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="invoices")
+    payment = models.OneToOneField(Payment, on_delete=models.CASCADE, related_name="invoice")
+    number = models.CharField(max_length=32, unique=True)
+    amount_cents = models.PositiveIntegerField()
+    currency = models.CharField(max_length=3, default="USD")
+    issued_at = models.DateTimeField(auto_now_add=True)
+    description = models.CharField(max_length=255, blank=True)
+
+    def __str__(self):
+        return self.number
 

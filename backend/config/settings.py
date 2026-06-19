@@ -10,8 +10,8 @@ DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = [host.strip() for host in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")]
 
 INSTALLED_APPS = [
-    "daphne",
     "jazzmin",
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -86,6 +86,16 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "60/minute",
+        "user": "300/minute",
+        "auth": "10/minute",
+        "iot": "120/minute",
+    },
 }
 
 CORS_ALLOWED_ORIGINS = [
@@ -96,6 +106,11 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_TASK_ALWAYS_EAGER = os.getenv("CELERY_TASK_ALWAYS_EAGER", "1") == "1"
+CELERY_TASK_QUEUES = {
+    "celery":       {"exchange": "celery",       "routing_key": "celery"},
+    "low_priority": {"exchange": "low_priority", "routing_key": "low_priority"},
+}
+CELERY_TASK_DEFAULT_QUEUE = "celery"
 CELERY_BEAT_SCHEDULE = {
     "check-offline-devices": {
         "task": "apps.tracking.tasks.check_offline_devices_task",
@@ -112,6 +127,34 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 DEVICE_OFFLINE_THRESHOLD_SECONDS = int(os.getenv("DEVICE_OFFLINE_THRESHOLD_SECONDS", "600"))
+
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "1") == "1"
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@pettrack.example")
+
+# Stripe
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_CURRENCY = os.getenv("STRIPE_CURRENCY", "usd")
+STRIPE_SUCCESS_URL = os.getenv("STRIPE_SUCCESS_URL", "http://localhost:5173/billing?success=1")
+STRIPE_CANCEL_URL = os.getenv("STRIPE_CANCEL_URL", "http://localhost:5173/billing?cancelled=1")
+
+# Firebase FCM
+FIREBASE_CREDENTIALS_PATH = os.getenv("FIREBASE_CREDENTIALS_PATH", "")
+
+# Twilio SMS
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
+TWILIO_FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER", "")
+
+# OTA firmware
+LATEST_FIRMWARE_VERSION = os.getenv("LATEST_FIRMWARE_VERSION", "1.0.0")
+FIRMWARE_DOWNLOAD_URL = os.getenv("FIRMWARE_DOWNLOAD_URL", "")
+FIRMWARE_SHA256 = os.getenv("FIRMWARE_SHA256", "")
 
 JAZZMIN_SETTINGS = {
     "site_title": "PetTrack OS Admin",

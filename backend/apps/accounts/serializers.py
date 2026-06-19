@@ -2,6 +2,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
+from .models import UserProfile
+
 User = get_user_model()
 
 
@@ -33,4 +35,11 @@ class UserSerializer(serializers.ModelSerializer):
         if user.is_staff:
             return "admin"
         return "user"
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = ("id", "phone", "avatar_url", "timezone", "language", "created_at", "updated_at")
+        read_only_fields = ("id", "created_at", "updated_at")
 

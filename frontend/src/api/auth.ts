@@ -1,4 +1,4 @@
-import type { User } from "../types";
+import type { User, UserProfile } from "../types";
 import { apiRequest, setTokens } from "./client";
 
 export async function login(username: string, password: string) {
@@ -23,6 +23,18 @@ export async function register(data: {
 
 export async function getMe() {
   return apiRequest<User>("/auth/me/");
+}
+
+export async function updateMe(data: Partial<Pick<User, "first_name" | "last_name" | "email">>) {
+  return apiRequest<User>("/auth/me/", { method: "PATCH", body: data });
+}
+
+export async function getProfile() {
+  return apiRequest<UserProfile>("/auth/profile/");
+}
+
+export async function updateProfile(data: Partial<UserProfile>) {
+  return apiRequest<UserProfile>("/auth/profile/", { method: "PATCH", body: data });
 }
 
 export async function logout() {

@@ -3,8 +3,8 @@ from rest_framework.exceptions import PermissionDenied
 
 from apps.billing.services import max_animals
 
-from .models import Animal
-from .serializers import AnimalSerializer, VaccinationSerializer
+from .models import Animal, MedicalRecord
+from .serializers import AnimalSerializer, MedicalRecordSerializer, VaccinationSerializer
 
 
 class AnimalViewSet(viewsets.ModelViewSet):
@@ -31,6 +31,7 @@ class AnimalViewSet(viewsets.ModelViewSet):
         return response.Response({
             "medical_notes": animal.medical_notes,
             "vaccinations": VaccinationSerializer(animal.vaccinations.all(), many=True).data,
+            "medical_records": MedicalRecordSerializer(animal.medical_records.order_by("-date"), many=True).data,
         })
 
     @decorators.action(detail=True, methods=["post"])
@@ -40,4 +41,29 @@ class AnimalViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save(animal=animal)
         return response.Response(serializer.data, status=201)
+
+    @decorators.action(detail=True, methods=["get", "post"], url_path="medical-records")
+    def medical_records(self, request, pk=None):
+        animal = self.get_object()
+        if request.method == "GET":
+            records = MedicalRecord.objects.filter(animal=animal).order_by("-date")
+            return response.Response(MedicalRecordSerializer(records, many=True).data)
+        serializer = MedicalRecordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(animal=animal)
+        return response.Response(serializer.data, status=201)
+
+    @decorators.action(detail=True, methods=["patch", "delete"], url_path="medical-records/(?P<record_id>[0-9a-f-]+)")
+    def medical_record_detail(self, request, pk=None, record_id=None):
+        animal = self.get_object()
+        record = MedicalRecord.objects.filter(id=record_id, animal=animal).first()
+        if not record:
+            return response.Response({"detail": "Not found."}, status=404)
+        if request.method == "DELETE":
+            record.delete()
+            return response.Response(status=204)
+        serializer = MedicalRecordSerializer(record, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return response.Response(serializer.data)
 

@@ -1,5 +1,5 @@
 from apps.ai.services import analyze_animal_activity
-from apps.billing.services import user_has_ai
+from apps.billing.services import device_has_ai
 from apps.devices.models import Device
 from apps.geofences.services import check_geofences_for_device
 from apps.notifications.services import (
@@ -42,12 +42,24 @@ def process_location_update(location_id) -> None:
         if notification:
             publish_alert(owner.id, {"title": notification.title, "body": notification.body, "level": notification.level})
 
-    if user_has_ai(owner):
+    if device_has_ai(device):
         report = analyze_animal_activity(assignment.animal)
         if report.anomalies:
             notification = notify_ai_anomaly(owner, assignment.animal.name, report.summary)
             if notification:
                 publish_alert(owner.id, {"title": notification.title, "body": notification.body, "level": notification.level})
+
+
+def process_location_update_realtime_only(location_id) -> None:
+    """Публикует точку в realtime-канал без запуска уведомлений и AI.
+    Используется для исторических точек из оффлайн-буфера."""
+    location = (
+        Location.objects.select_related("device")
+        .filter(id=location_id)
+        .first()
+    )
+    if location:
+        publish_location_update(location)
 
 
 def mark_stale_devices_offline() -> int:

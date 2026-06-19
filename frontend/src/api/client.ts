@@ -22,6 +22,24 @@ function getTokens() {
   };
 }
 
+function decodeJwtPayload(token: string): { exp?: number } | null {
+  try {
+    const [, payload] = token.split(".");
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const json = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "="));
+    return JSON.parse(json) as { exp?: number };
+  } catch {
+    return null;
+  }
+}
+
+function isTokenExpiring(token: string) {
+  const payload = decodeJwtPayload(token);
+  if (!payload?.exp) return true;
+  return payload.exp * 1000 <= Date.now() + 30_000;
+}
+
 export function setTokens(access: string, refresh: string) {
   localStorage.setItem("access_token", access);
   localStorage.setItem("refresh_token", refresh);
@@ -52,13 +70,26 @@ async function refreshAccessToken(): Promise<string | null> {
   return data.access;
 }
 
+let refreshPromise: Promise<string | null> | null = null;
+
+export async function getValidAccessToken(): Promise<string | null> {
+  const { access, refresh } = getTokens();
+  if (!access && !refresh) return null;
+  if (access && !isTokenExpiring(access)) return access;
+
+  refreshPromise ??= refreshAccessToken().finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json"
   };
 
   if (options.auth !== false) {
-    const { access } = getTokens();
+    const access = await getValidAccessToken();
     if (access) headers.Authorization = `Bearer ${access}`;
   }
 

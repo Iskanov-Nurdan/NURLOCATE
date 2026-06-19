@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Payment, Subscription, SubscriptionPlan
+from .models import Invoice, Payment, Subscription, SubscriptionPlan
 
 
 class SubscriptionPlanSerializer(serializers.ModelSerializer):
@@ -27,4 +27,11 @@ class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
         fields = "__all__"
+
+
+class InvoiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Invoice
+        fields = "__all__"
+        read_only_fields = ("id", "user", "payment", "number", "issued_at")
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { API_BASE } from "../api/client";
+import { API_BASE, getValidAccessToken } from "../api/client";
 import { getLiveLocations } from "../api/tracking";
 import type { Location } from "../types";
 
@@ -34,12 +34,15 @@ export function useLiveTracking(enabled = true) {
   useEffect(() => {
     if (!enabled) return;
 
-    refresh();
+    let cancelled = false;
     const timer = setInterval(refresh, POLL_MS);
 
-    const token = localStorage.getItem("access_token");
-    const wsBase = import.meta.env.VITE_WS_URL ?? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`;
-    if (token) {
+    async function connect() {
+      await refresh();
+      const token = await getValidAccessToken();
+      if (cancelled || !token) return;
+
+      const wsBase = import.meta.env.VITE_WS_URL ?? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`;
       const wsUrl = `${wsBase}/ws/tracking/?token=${token}`;
       try {
         const ws = new WebSocket(wsUrl);
@@ -88,9 +91,16 @@ export function useLiveTracking(enabled = true) {
       }
     }
 
+    connect();
+
     return () => {
+      cancelled = true;
       clearInterval(timer);
-      wsRef.current?.close();
+      const ws = wsRef.current;
+      wsRef.current = null;
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+        ws.close();
+      }
     };
   }, [enabled, refresh]);
 

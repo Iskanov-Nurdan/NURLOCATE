@@ -38,8 +38,37 @@ class IoTLocationSerializer(serializers.Serializer):
     altitude = serializers.FloatField(required=False)
     battery = serializers.IntegerField(min_value=0, max_value=100)
     signal = serializers.IntegerField(required=False)
-    mode = serializers.CharField(required=False, default="normal")
+    mode = serializers.CharField(required=False)
     firmware = serializers.CharField(required=False, allow_blank=True)
     nonce = serializers.CharField()
     signature = serializers.CharField(required=False, allow_blank=True)
+
+
+class IoTBatchPointSerializer(serializers.Serializer):
+    """Одна GPS-точка внутри батча (без device_id/nonce — они на уровне батча)."""
+    timestamp = serializers.DateTimeField()
+    lat = serializers.DecimalField(max_digits=9, decimal_places=6)
+    lng = serializers.DecimalField(max_digits=9, decimal_places=6)
+    accuracy = serializers.FloatField(required=False)
+    speed = serializers.FloatField(required=False)
+    altitude = serializers.FloatField(required=False)
+    battery = serializers.IntegerField(min_value=0, max_value=100)
+    signal = serializers.IntegerField(required=False)
+    mode = serializers.CharField(required=False)
+
+
+class IoTBatchSerializer(serializers.Serializer):
+    """Оффлайн-буфер: массив точек собранных без интернета."""
+    device_id = serializers.CharField()
+    nonce = serializers.CharField()
+    signature = serializers.CharField(required=False, allow_blank=True)
+    firmware = serializers.CharField(required=False, allow_blank=True)
+    points = IoTBatchPointSerializer(many=True)
+
+    def validate_points(self, value):
+        if not value:
+            raise serializers.ValidationError("Список точек не может быть пустым.")
+        if len(value) > 500:
+            raise serializers.ValidationError("Максимум 500 точек за один батч.")
+        return value
 

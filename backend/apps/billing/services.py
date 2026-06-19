@@ -23,7 +23,7 @@ def get_plan_features(user) -> dict:
     plan = get_user_plan(user)
     if plan:
         return plan.features or {}
-    return {"animals": 1, "history_hours": 24, "sos": False, "ai": False, "geofences": 1}
+    return {"animals": 3, "history_hours": 24, "sos": False, "ai": False, "geofences": 3}
 
 
 def user_has_ai(user) -> bool:
@@ -66,3 +66,37 @@ def link_device_subscription(device, subscription):
 
     DeviceSubscription.objects.filter(device=device, is_active=True).update(is_active=False)
     DeviceSubscription.objects.create(device=device, subscription=subscription, is_active=True)
+
+
+def get_device_active_subscription(device):
+    from apps.billing.models import DeviceSubscription
+    ds = DeviceSubscription.objects.filter(device=device, is_active=True).select_related("subscription__plan").first()
+    if ds and ds.subscription.status == "active":
+        return ds.subscription
+    return None
+
+
+def get_device_plan_features(device) -> dict:
+    sub = get_device_active_subscription(device)
+    if sub:
+        return sub.plan.features or {}
+    return {"history_hours": 24, "sos": False, "ai": False}
+
+
+def device_has_ai(device) -> bool:
+    return bool(get_device_plan_features(device).get("ai"))
+
+
+def device_can_sos(device) -> bool:
+    return bool(get_device_plan_features(device).get("sos"))
+
+
+def device_history_cutoff(device):
+    features = get_device_plan_features(device)
+    now = timezone.now()
+    if days := features.get("history_days"):
+        return now - timedelta(days=int(days))
+    if hours := features.get("history_hours"):
+        return now - timedelta(hours=int(hours))
+    return now - timedelta(hours=24)
+

@@ -169,3 +169,37 @@ export type ActivityReport = {
   walkCount: number;
   summary: string;
 };
+
+export type UserProfile = {
+  id: string;
+  phone: string;
+  avatar_url: string;
+  timezone: string;
+  language: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Invoice = {
+  id: string;
+  user: number;
+  payment: string;
+  number: string;
+  amount_cents: number;
+  currency: string;
+  issued_at: string;
+  description: string;
+};
+
+export type MedicalRecord = {
+  id: string;
+  animal: string;
+  record_type: string;
+  title: string;
+  description: string;
+  vet_name: string;
+  clinic: string;
+  date: string;
+  next_visit: string | null;
+  created_at: string;
+};

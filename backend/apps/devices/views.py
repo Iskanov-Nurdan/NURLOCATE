@@ -3,7 +3,7 @@ from rest_framework import decorators, permissions, response, status, viewsets
 from rest_framework.views import APIView
 
 from apps.animals.models import Animal
-from apps.billing.services import user_can_sos
+from apps.billing.services import device_can_sos
 
 from .models import Device, DeviceAssignment
 from .serializers import ClaimDeviceSerializer, DeviceModeSerializer, DeviceSerializer
@@ -27,7 +27,7 @@ class DeviceViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = DeviceModeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         mode = serializer.validated_data["mode"]
-        if mode in (Device.Mode.SOS, Device.Mode.WALK) and not user_can_sos(request.user):
+        if mode in (Device.Mode.SOS, Device.Mode.WALK) and not device_can_sos(device):
             return response.Response({"detail": "SOS/Walk mode requires Premium plan."}, status=403)
         device.mode = mode
         device.save(update_fields=["mode"])
@@ -35,9 +35,9 @@ class DeviceViewSet(viewsets.ReadOnlyModelViewSet):
 
     @decorators.action(detail=True, methods=["post"])
     def sos(self, request, pk=None):
-        if not user_can_sos(request.user):
-            return response.Response({"detail": "SOS requires Premium plan."}, status=403)
         device = self.get_object()
+        if not device_can_sos(device):
+            return response.Response({"detail": "SOS requires Premium plan."}, status=403)
         device.mode = Device.Mode.SOS
         device.save(update_fields=["mode"])
         return response.Response(DeviceSerializer(device).data)

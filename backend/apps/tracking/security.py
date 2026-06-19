@@ -2,6 +2,8 @@ import hashlib
 import hmac
 import json
 
+from django.core.cache import cache
+
 
 def verify_device_signature(secret: str, payload: dict, signature: str) -> bool:
     if not secret or not signature:
@@ -11,4 +13,15 @@ def verify_device_signature(secret: str, payload: dict, signature: str) -> bool:
     digest = hmac.new(secret.encode(), message, hashlib.sha256).hexdigest()
     normalized = signature.removeprefix("hmac_sha256:").removeprefix("hmac_sha256=")
     return hmac.compare_digest(digest, normalized)
+
+
+def check_and_store_nonce(device_id: str, nonce: str, ttl: int = 300) -> bool:
+    """Returns True if nonce is fresh (not seen before). Stores it to prevent replay."""
+    if not nonce:
+        return False
+    key = f"iot_nonce:{device_id}:{nonce}"
+    if cache.get(key):
+        return False
+    cache.set(key, 1, ttl)
+    return True
 
