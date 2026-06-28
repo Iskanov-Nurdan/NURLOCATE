@@ -1,4 +1,5 @@
 import {
+  AlertCircle,
   Bot,
   Check,
   CheckCircle2,
@@ -29,7 +30,10 @@ const FEATURE_META: Record<string, { label: string; icon: React.ElementType; for
   animals:       { label: "Питомцев",             icon: Dog,     format: (v) => `до ${v}` },
   geofences:     { label: "Геозон",               icon: MapPin,  format: (v) => `до ${v}` },
   history_hours: { label: "История",              icon: Clock,   format: (v) => `${v} часов` },
-  history_days:  { label: "История",              icon: Clock,   format: (v) => `${v} дней` }
+  history_days:  { label: "История",              icon: Clock,   format: (v) => `${v} дней` },
+  devices:       { label: "Устройств",            icon: Shield,  format: (v) => `до ${v}` },
+  roles:         { label: "Роли команды",         icon: Check },
+  sla:           { label: "SLA-поддержка",        icon: Zap },
 };
 
 function FeatureRow({ k, v }: { k: string; v: unknown }) {
@@ -57,13 +61,15 @@ function FeatureRow({ k, v }: { k: string; v: unknown }) {
 }
 
 const PLAN_COLORS: Record<string, string> = {
-  free:    "border-border",
-  premium: "border-accent/40 shadow-[0_0_20px_rgba(220,38,38,0.08)]",
-  family:  "border-mint/30 shadow-[0_0_20px_rgba(22,163,74,0.08)]"
+  free:     "border-border",
+  premium:  "border-accent/40 shadow-[0_0_20px_rgba(220,38,38,0.08)]",
+  family:   "border-mint/30 shadow-[0_0_20px_rgba(22,163,74,0.08)]",
+  business: "border-amber/40 shadow-[0_0_20px_rgba(245,158,11,0.08)]",
 };
 const PLAN_BADGE: Record<string, JSX.Element | null> = {
-  premium: <Badge variant="info">Популярный</Badge>,
-  family:  <Badge variant="success">Макс. защита</Badge>
+  premium:  <Badge variant="info">Популярный</Badge>,
+  family:   <Badge variant="success">Макс. защита</Badge>,
+  business: <Badge variant="warning">Для бизнеса</Badge>,
 };
 
 export function BillingPage() {
@@ -71,6 +77,7 @@ export function BillingPage() {
   const [subs, setSubs]                 = useState<Subscription[]>([]);
   const [invoices, setInvoices]         = useState<Invoice[]>([]);
   const [loading, setLoading]           = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [devices, setDevices]           = useState<Device[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
@@ -88,6 +95,7 @@ export function BillingPage() {
 
   async function handleCheckout(code: string) {
     setLoading(code);
+    setCheckoutError(null);
     try {
       const result = await checkout(code, selectedDeviceId || undefined);
       if (result.checkout_url.startsWith("http")) {
@@ -101,6 +109,9 @@ export function BillingPage() {
       } else {
         await load();
       }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Ошибка оформления подписки";
+      setCheckoutError(msg);
     } finally {
       setLoading(null);
     }
@@ -120,6 +131,13 @@ export function BillingPage() {
         {/* Тарифы */}
         <div className="space-y-3">
           <h2 className="font-semibold">Выберите тариф</h2>
+
+          {checkoutError && (
+            <div className="flex items-center gap-2 rounded-card border border-critical/30 bg-critical/10 px-4 py-3 text-sm text-critical">
+              <AlertCircle size={14} className="shrink-0" />
+              {checkoutError}
+            </div>
+          )}
 
           {/* Выбор устройства */}
           {devices.length > 0 ? (
@@ -187,8 +205,10 @@ export function BillingPage() {
                       <><Check size={15} /> Активен</>
                     ) : loading === plan.code ? (
                       "Оформление..."
+                    ) : plan.price_cents === 0 ? (
+                      <><Check size={15} /> Активировать бесплатно</>
                     ) : (
-                      "Оформить"
+                      <><CreditCard size={15} /> Оплатить {formatPrice(plan.price_cents)}</>
                     )}
                   </Button>
                 </div>

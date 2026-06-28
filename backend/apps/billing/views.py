@@ -178,6 +178,39 @@ class PaymentWebhookView(APIView):
             sub.save(update_fields=["status", "starts_at", "ends_at"])
 
 
+class ConfirmTestPaymentView(APIView):
+    """Dev/staging only: authenticate user confirms their own pending payment.
+    Used when Stripe is not configured. Verifies ownership before activating."""
+
+    def post(self, request):
+        if django_settings.STRIPE_SECRET_KEY:
+            return response.Response(
+                {"detail": "Production mode: use Stripe checkout."},
+                status=400,
+            )
+        payment_id = request.data.get("payment_id")
+        if not payment_id:
+            return response.Response({"detail": "payment_id required."}, status=400)
+        payment = (
+            Payment.objects.filter(id=payment_id, user=request.user)
+            .select_related("subscription")
+            .first()
+        )
+        if not payment:
+            return response.Response({"detail": "Payment not found."}, status=404)
+        if payment.status == "succeeded":
+            return response.Response({"detail": "Already paid."})
+        payment.status = "succeeded"
+        payment.save(update_fields=["status"])
+        if payment.subscription:
+            sub = payment.subscription
+            sub.status = "active"
+            sub.starts_at = timezone.now()
+            sub.ends_at = timezone.now() + timedelta(days=30)
+            sub.save(update_fields=["status", "starts_at", "ends_at"])
+        return response.Response({"detail": "Payment confirmed."})
+
+
 class InvoicesView(APIView):
     def get(self, request):
         invoices = Invoice.objects.filter(user=request.user).order_by("-issued_at")
