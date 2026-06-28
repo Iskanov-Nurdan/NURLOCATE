@@ -1,4 +1,5 @@
 import logging
+import threading
 
 from django.core.mail import send_mail
 
@@ -9,22 +10,25 @@ from .models import Notification, NotificationSettings
 logger = logging.getLogger(__name__)
 
 
-def _send_email_async(user, title: str, body: str) -> None:
-    try:
-        settings_obj = NotificationSettings.objects.filter(user=user).first()
-        if settings_obj and not settings_obj.email_enabled:
-            return
-        if not user.email:
-            return
-        send_mail(
-            subject=f"[PetTrack OS] {title}",
-            message=body,
-            from_email=None,
-            recipient_list=[user.email],
-            fail_silently=True,
-        )
-    except Exception:
-        logger.exception("Failed to send email to %s", user.email)
+def _send_email_in_thread(user, title: str, body: str) -> None:
+    def _send():
+        try:
+            settings_obj = NotificationSettings.objects.filter(user=user).first()
+            if settings_obj and not settings_obj.email_enabled:
+                return
+            if not user.email:
+                return
+            send_mail(
+                subject=f"[PetTrack OS] {title}",
+                message=body,
+                from_email=None,
+                recipient_list=[user.email],
+                fail_silently=True,
+            )
+        except Exception:
+            logger.exception("Failed to send email to %s", user.email)
+
+    threading.Thread(target=_send, daemon=True).start()
 
 
 def _send_fcm(user, title: str, body: str, data: dict | None = None) -> None:
@@ -55,7 +59,7 @@ def create_notification(user, title: str, body: str, level: str = "info") -> Not
         return None
     notification = Notification.objects.create(user=user, title=title, body=body, level=level)
     if level in ("critical", "warning"):
-        _send_email_async(user, title, body)
+        _send_email_in_thread(user, title, body)
     _send_fcm(user, title, body, {"level": level})
     if level == "critical":
         _send_sms_critical(user, title, body)

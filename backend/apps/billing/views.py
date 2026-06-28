@@ -3,6 +3,7 @@ from datetime import timedelta
 
 import stripe
 from django.conf import settings as django_settings
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import permissions, response
 from rest_framework.views import APIView
@@ -31,41 +32,44 @@ class CheckoutView(APIView):
         plan = SubscriptionPlan.objects.get(code=serializer.validated_data["plan_code"])
         device_id = serializer.validated_data.get("device_id")
 
-        subscription = Subscription.objects.create(
-            user=request.user,
-            plan=plan,
-            starts_at=timezone.now(),
-            ends_at=timezone.now() + timedelta(days=30),
-            status="active" if plan.price_cents == 0 else "pending",
-        )
-        payment = Payment.objects.create(
-            user=request.user,
-            subscription=subscription,
-            amount_cents=plan.price_cents,
-            status="succeeded" if plan.price_cents == 0 else "pending",
-        )
+        with transaction.atomic():
+            subscription = Subscription.objects.create(
+                user=request.user,
+                plan=plan,
+                starts_at=timezone.now(),
+                ends_at=timezone.now() + timedelta(days=30),
+                status="active" if plan.price_cents == 0 else "pending",
+            )
+            payment = Payment.objects.create(
+                user=request.user,
+                subscription=subscription,
+                amount_cents=plan.price_cents,
+                status="succeeded" if plan.price_cents == 0 else "pending",
+            )
 
-        invoice_number = f"INV-{timezone.now().strftime('%Y%m%d')}-{str(payment.id)[:8].upper()}"
-        Invoice.objects.create(
-            user=request.user,
-            payment=payment,
-            number=invoice_number,
-            amount_cents=plan.price_cents,
-            currency="USD",
-            description=f"Подписка {plan.name}",
-        )
+            invoice_number = f"INV-{timezone.now().strftime('%Y%m%d')}-{str(payment.id)[:8].upper()}"
+            Invoice.objects.create(
+                user=request.user,
+                payment=payment,
+                number=invoice_number,
+                amount_cents=plan.price_cents,
+                currency="USD",
+                description=f"Подписка {plan.name}",
+            )
 
-        if device_id:
-            device = Device.objects.filter(id=device_id).first()
-            if device:
-                link_device_subscription(device, subscription)
+            if device_id:
+                device = Device.objects.filter(id=device_id).first()
+                if device:
+                    link_device_subscription(device, subscription)
 
-        checkout_url = ""
-        if plan.price_cents == 0:
-            subscription.status = "active"
-            subscription.save(update_fields=["status"])
-        else:
-            checkout_url = _create_stripe_session(payment, plan, subscription)
+            checkout_url = ""
+            if plan.price_cents == 0:
+                subscription.status = "active"
+                subscription.save(update_fields=["status"])
+            else:
+                checkout_url = _create_stripe_session(payment, plan, subscription)
+                if not checkout_url:
+                    raise ValueError("Stripe session creation failed — rolling back.")
 
         return response.Response({
             "subscription": SubscriptionSerializer(subscription).data,
@@ -158,9 +162,11 @@ class PaymentWebhookView(APIView):
 
     def _activate_payment(self, payment_id: str | None, status: str = "succeeded") -> None:
         if not payment_id:
+            logger.warning("_activate_payment called without payment_id")
             return
         payment = Payment.objects.filter(id=payment_id).select_related("subscription").first()
         if not payment:
+            logger.warning("_activate_payment: payment %s not found", payment_id)
             return
         payment.status = status
         payment.save(update_fields=["status"])

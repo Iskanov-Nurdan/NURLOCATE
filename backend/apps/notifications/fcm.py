@@ -1,25 +1,30 @@
 import logging
 import os
+import threading
 
 logger = logging.getLogger(__name__)
 
 _firebase_initialized = False
+_firebase_lock = threading.Lock()
 
 
 def _init_firebase():
     global _firebase_initialized
     if _firebase_initialized:
         return
-    try:
-        import firebase_admin
-        from firebase_admin import credentials
-        cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH", "")
-        if cred_path and os.path.exists(cred_path):
-            cred = credentials.Certificate(cred_path)
-            firebase_admin.initialize_app(cred)
-            _firebase_initialized = True
-    except Exception:
-        logger.exception("Firebase init failed")
+    with _firebase_lock:
+        if _firebase_initialized:
+            return
+        try:
+            import firebase_admin
+            from firebase_admin import credentials
+            cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH", "")
+            if cred_path and os.path.exists(cred_path):
+                cred = credentials.Certificate(cred_path)
+                firebase_admin.initialize_app(cred)
+                _firebase_initialized = True
+        except Exception:
+            logger.exception("Firebase init failed")
 
 
 def send_push(token: str, title: str, body: str, data: dict | None = None) -> bool:

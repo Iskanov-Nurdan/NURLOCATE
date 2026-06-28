@@ -1,4 +1,4 @@
-import { Dog } from "lucide-react";
+import { LocateFixed } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -41,7 +41,7 @@ export function RegisterPage() {
       <div className="relative w-full max-w-sm animate-fade-in">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <div className="grid h-14 w-14 place-items-center rounded-2xl bg-accent text-white shadow-glow">
-            <Dog size={28} />
+            <LocateFixed size={28} />
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-text">PetTrack OS</h1>

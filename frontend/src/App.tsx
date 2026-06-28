@@ -13,6 +13,7 @@ import { AdminSubscriptionsPage } from "./pages/admin/AdminSubscriptionsPage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { AnimalProfilePage } from "./pages/owner/AnimalProfilePage";
 import { BillingPage } from "./pages/owner/BillingPage";
+import { PaymentPage } from "./pages/owner/PaymentPage";
 import { GeofencesPage } from "./pages/owner/GeofencesPage";
 import { HistoryPage } from "./pages/owner/HistoryPage";
 import { MapLivePage } from "./pages/owner/MapLivePage";
@@ -39,6 +40,12 @@ const router = createBrowserRouter(
     { path: "/", element: <HomeRedirect /> },
     { path: "/login", element: <LoginPage /> },
     { path: "/register", element: <RegisterPage /> },
+    {
+      element: <ProtectedRoute />,
+      children: [
+        { path: "/billing/pay/:paymentId", element: <PaymentPage /> }
+      ]
+    },
     {
       element: <ProtectedRoute />,
       children: [

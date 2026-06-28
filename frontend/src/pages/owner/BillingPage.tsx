@@ -12,6 +12,7 @@ import {
   Zap
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { checkout, listInvoices, listPlans, listSubscriptions, updateSubscription } from "../../api/billing";
 import { listDevices } from "../../api/devices";
 import { Button } from "../../components/ui/Button";
@@ -49,9 +50,7 @@ function FeatureRow({ k, v }: { k: string; v: unknown }) {
         <Icon size={14} className="shrink-0 text-accent" />
       )}
       <span className={isBool && !v ? "text-muted/50 line-through" : "text-text/80"}>
-        {meta.format ? meta.format(v) : meta.label}
-        {!isBool && <span className="text-muted"> {meta.label.toLowerCase()}</span>}
-        {isBool && ` ${meta.label}`}
+        {meta.format ? `${meta.format(v)} ${meta.label.toLowerCase()}` : meta.label}
       </span>
     </div>
   );
@@ -72,6 +71,7 @@ export function BillingPage() {
   const [subs, setSubs]                 = useState<Subscription[]>([]);
   const [invoices, setInvoices]         = useState<Invoice[]>([]);
   const [loading, setLoading]           = useState<string | null>(null);
+  const navigate = useNavigate();
   const [devices, setDevices]           = useState<Device[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
 
@@ -90,8 +90,17 @@ export function BillingPage() {
     setLoading(code);
     try {
       const result = await checkout(code, selectedDeviceId || undefined);
-      if (result.checkout_url.startsWith("http")) window.open(result.checkout_url, "_blank");
-      await load();
+      if (result.checkout_url.startsWith("http")) {
+        window.open(result.checkout_url, "_blank");
+        await load();
+      } else if (result.checkout_url) {
+        const plan = plans.find((p) => p.code === code);
+        navigate(`/billing/pay/${result.payment_id}`, {
+          state: { planName: plan?.name ?? code, priceCents: plan?.price_cents ?? 0 },
+        });
+      } else {
+        await load();
+      }
     } finally {
       setLoading(null);
     }
@@ -134,7 +143,7 @@ export function BillingPage() {
             </div>
           )}
 
-          {/* Карточки тарифов */}
+            {/* Карточки тарифов */}
           <div className="grid gap-3">
             {plans.map((plan) => {
               const colorClass = PLAN_COLORS[plan.code] ?? PLAN_COLORS.free;
@@ -195,7 +204,7 @@ export function BillingPage() {
             <CardHeader>
               <div>
                 <h2 className="font-semibold">Мои подписки</h2>
-                <p className="text-xs text-muted">{subs.length} активных</p>
+                <p className="text-xs text-muted">{subs.filter((s) => s.status === "active").length} активных</p>
               </div>
               <CreditCard size={15} className="text-muted" />
             </CardHeader>

@@ -7,6 +7,8 @@ from .models import AdminTOTP
 
 
 class TOTPSetupView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
     def post(self, request):
         if not (request.user.is_staff or request.user.is_superuser):
             return Response({"detail": "Admin only."}, status=403)
@@ -30,6 +32,8 @@ class TOTPSetupView(APIView):
 
 
 class TOTPVerifyView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
     def post(self, request):
         if not (request.user.is_staff or request.user.is_superuser):
             return Response({"detail": "Admin only."}, status=403)
@@ -46,6 +50,8 @@ class TOTPVerifyView(APIView):
 
 
 class TOTPStatusView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
     def get(self, request):
         if not (request.user.is_staff or request.user.is_superuser):
             return Response({"detail": "Admin only."}, status=403)
@@ -57,6 +63,8 @@ class TOTPStatusView(APIView):
 
 
 class TOTPDisableView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
     def post(self, request):
         if not request.user.is_superuser:
             return Response({"detail": "SuperAdmin only."}, status=403)

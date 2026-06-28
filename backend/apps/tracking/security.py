@@ -16,12 +16,10 @@ def verify_device_signature(secret: str, payload: dict, signature: str) -> bool:
 
 
 def check_and_store_nonce(device_id: str, nonce: str, ttl: int = 300) -> bool:
-    """Returns True if nonce is fresh (not seen before). Stores it to prevent replay."""
+    """Returns True if nonce is fresh (not seen before). Stores it to prevent replay.
+    Uses cache.add which is atomic — prevents TOCTOU replay under concurrent requests."""
     if not nonce:
         return False
     key = f"iot_nonce:{device_id}:{nonce}"
-    if cache.get(key):
-        return False
-    cache.set(key, 1, ttl)
-    return True
+    return cache.add(key, 1, ttl)
 
